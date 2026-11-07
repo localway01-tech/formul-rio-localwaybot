@@ -4,7 +4,7 @@ import { CheckCircle2, Calendar, Phone, Building2, ArrowRight, Printer, Sparkles
 import { ClinicInfo, AnswersMap } from '../types';
 
 interface FormConfirmationProps {
-  clinicInfo: ClinicInfo;
+  clinicInfo?: ClinicInfo;
   answers: AnswersMap;
   submissionId: string;
   createdAt: string;
@@ -66,11 +66,11 @@ export const FormConfirmation: React.FC<FormConfirmationProps> = ({
           </span>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
-            Obrigado, {clinicInfo.clinicName}!
+            Obrigado! Diagnóstico Concluído
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 max-w-lg mx-auto leading-relaxed mb-8">
-            As respostas da sua clínica foram registradas com sucesso no nosso banco de dados. Nossa equipe técnica da Localway já iniciou a análise dos seus requisitos para desenhar a automação perfeita no seu WhatsApp.
+            Suas respostas foram registradas com sucesso no nosso banco de dados. Nossa equipe técnica da Localway já iniciou a análise dos seus requisitos para desenhar a automação ideal para o seu WhatsApp.
           </p>
 
           {/* Submission Summary Box */}
@@ -79,14 +79,18 @@ export const FormConfirmation: React.FC<FormConfirmationProps> = ({
               Resumo do Envio
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2.5 text-slate-700">
-                <Building2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                <span className="font-semibold truncate">{clinicInfo.clinicName}</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-slate-700">
-                <Phone className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-                <span>{clinicInfo.whatsapp}</span>
-              </div>
+              {clinicInfo?.clinicName && (
+                <div className="flex items-center gap-2.5 text-slate-700">
+                  <Building2 className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                  <span className="font-semibold truncate">{clinicInfo.clinicName}</span>
+                </div>
+              )}
+              {clinicInfo?.whatsapp && (
+                <div className="flex items-center gap-2.5 text-slate-700">
+                  <Phone className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                  <span>{clinicInfo.whatsapp}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2.5 text-slate-700">
                 <Calendar className="w-4 h-4 text-indigo-600 flex-shrink-0" />
                 <span>{formattedDate}</span>
@@ -131,7 +135,7 @@ export const FormConfirmation: React.FC<FormConfirmationProps> = ({
                   3
                 </span>
                 <span>
-                  <strong>Contato direto via WhatsApp:</strong> Um especialista da Localway entrará em contato com <strong>{clinicInfo.whatsapp}</strong> para apresentar a proposta e demonstração.
+                  <strong>Contato direto via WhatsApp:</strong> Um especialista da Localway entrará em contato {clinicInfo?.whatsapp ? <>com <strong>{clinicInfo.whatsapp}</strong></> : 'com sua equipe via WhatsApp'} para apresentar a proposta e demonstração.
                 </span>
               </li>
             </ol>

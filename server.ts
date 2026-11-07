@@ -96,20 +96,26 @@ app.post('/api/submissions', async (req, res) => {
   try {
     const { clinicName, contactName, whatsapp, email, city, answers } = req.body;
 
-    if (!clinicName || typeof clinicName !== 'string' || !clinicName.trim()) {
-      return res.status(400).json({ error: 'O nome da clínica é obrigatório.' });
-    }
-
-    if (!whatsapp || typeof whatsapp !== 'string' || !whatsapp.trim()) {
-      return res.status(400).json({ error: 'O WhatsApp de contato é obrigatório.' });
-    }
-
     const submissionId = 'sub_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+    
+    // Friendly fallback name if clinic info was omitted
+    const resolvedClinicName = (clinicName && typeof clinicName === 'string' && clinicName.trim())
+      ? clinicName.trim()
+      : (answers && answers[18]?.value && typeof answers[18].value === 'string' && answers[18].value.trim())
+        ? 'Clínica: ' + answers[18].value.trim().slice(0, 45)
+        : 'Diagnóstico #' + submissionId.slice(-6);
+
+    const resolvedWhatsapp = (whatsapp && typeof whatsapp === 'string')
+      ? whatsapp.trim()
+      : (answers && answers[21]?.value && typeof answers[21].value === 'string')
+        ? answers[21].value.trim()
+        : '';
+
     const submissionData = {
       id: submissionId,
-      clinicName: clinicName.trim(),
+      clinicName: resolvedClinicName,
       contactName: (contactName || '').trim(),
-      whatsapp: whatsapp.trim(),
+      whatsapp: resolvedWhatsapp,
       email: (email || '').trim(),
       city: (city || '').trim(),
       answers: answers && typeof answers === 'object' ? answers : {},

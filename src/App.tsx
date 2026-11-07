@@ -1,40 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { FormStepClinic } from './components/FormStepClinic';
-import { FormStepQuestions } from './components/FormStepQuestions';
+import { SinglePageQuestionsForm } from './components/SinglePageQuestionsForm';
 import { FormConfirmation } from './components/FormConfirmation';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { ClinicInfo, AnswersMap } from './types';
-import { CATEGORIES, QUESTIONS } from './data/questions';
+import { AnswersMap } from './types';
 
 export default function App() {
   // Navigation view: 'form' (public customer questionnaire) or 'admin' (Localway backoffice)
   const [currentView, setCurrentView] = useState<'form' | 'admin'>('form');
 
-  // Form progression: 0 = Clinic Details, 1..5 = Question Categories 1..5, 6 = Success Confirmation
-  const [formStep, setFormStep] = useState<number>(0);
+  // Form submitted state: true when submission has been saved
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
-  // Clinic state
-  const [clinicInfo, setClinicInfo] = useState<ClinicInfo>(() => {
-    const saved = localStorage.getItem('localway_clinic_draft');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // fallback
-      }
-    }
-    return {
-      clinicName: '',
-      contactName: '',
-      whatsapp: '',
-      email: '',
-      city: '',
-    };
-  });
-
-  // Answers state
+  // Answers state stored locally to prevent accidental data loss during filling
   const [answers, setAnswers] = useState<AnswersMap>(() => {
     const saved = localStorage.getItem('localway_answers_draft');
     if (saved) {
@@ -51,18 +30,13 @@ export default function App() {
   const [submissionId, setSubmissionId] = useState<string>('');
   const [submissionDate, setSubmissionDate] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Admin authentication state
   const [adminToken, setAdminToken] = useState<string | null>(() => {
     return sessionStorage.getItem('localway_admin_token');
   });
 
-  // Save drafts locally to prevent accidental data loss during filling
-  useEffect(() => {
-    localStorage.setItem('localway_clinic_draft', JSON.stringify(clinicInfo));
-  }, [clinicInfo]);
-
+  // Save draft locally to prevent accidental loss
   useEffect(() => {
     localStorage.setItem('localway_answers_draft', JSON.stringify(answers));
   }, [answers]);
@@ -87,10 +61,9 @@ export default function App() {
     }));
   };
 
-  // Submit to persistent Firestore via server endpoint
+  // Submit all 25 questions to persistent Firestore via server endpoint
   const handleSubmitForm = async () => {
     setIsSubmitting(true);
-    setSubmitError(null);
 
     try {
       const response = await fetch('/api/submissions', {
@@ -99,11 +72,6 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          clinicName: clinicInfo.clinicName,
-          contactName: clinicInfo.contactName,
-          whatsapp: clinicInfo.whatsapp,
-          email: clinicInfo.email,
-          city: clinicInfo.city,
           answers,
         }),
       });
@@ -116,16 +84,13 @@ export default function App() {
 
       setSubmissionId(data.id);
       setSubmissionDate(data.createdAt || new Date().toISOString());
-
-      // Advance to confirmation screen
-      setFormStep(6);
+      setIsSubmitted(true);
 
       // Clear draft storage
       localStorage.removeItem('localway_answers_draft');
     } catch (err: any) {
       console.error(err);
-      setSubmitError(err?.message || 'Falha ao salvar respostas. Por favor, tente novamente.');
-      alert(err?.message || 'Falha ao salvar respostas no banco de dados.');
+      alert(err?.message || 'Falha ao salvar respostas no banco de dados. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,16 +98,10 @@ export default function App() {
 
   // Reset questionnaire
   const handleResetForm = () => {
-    setFormStep(0);
+    setIsSubmitted(false);
     setAnswers({});
-    setClinicInfo({
-      clinicName: '',
-      contactName: '',
-      whatsapp: '',
-      email: '',
-      city: '',
-    });
-    localStorage.removeItem('localway_clinic_draft');
+    setSubmissionId('');
+    setSubmissionDate('');
     localStorage.removeItem('localway_answers_draft');
   };
 
@@ -203,32 +162,17 @@ export default function App() {
             />
           )
         ) : (
-          /* ================= PUBLIC CUSTOMER FORM ================= */
+          /* ================= PUBLIC CUSTOMER FORM (SINGLE PAGE, NO CATEGORIES, NO INITIAL INFO) ================= */
           <div>
-            {formStep === 0 && (
-              <FormStepClinic
-                clinicInfo={clinicInfo}
-                onChange={setClinicInfo}
-                onNext={() => setFormStep(1)}
-              />
-            )}
-
-            {formStep >= 1 && formStep <= 5 && (
-              <FormStepQuestions
-                currentCategory={formStep}
+            {!isSubmitted ? (
+              <SinglePageQuestionsForm
                 answers={answers}
                 onAnswerChange={handleAnswerChange}
-                onCategorySelect={(catId) => setFormStep(catId)}
-                onPrev={() => setFormStep((prev) => prev - 1)}
-                onNext={() => setFormStep((prev) => prev + 1)}
                 onSubmit={handleSubmitForm}
                 isSubmitting={isSubmitting}
               />
-            )}
-
-            {formStep === 6 && (
+            ) : (
               <FormConfirmation
-                clinicInfo={clinicInfo}
                 answers={answers}
                 submissionId={submissionId}
                 createdAt={submissionDate}

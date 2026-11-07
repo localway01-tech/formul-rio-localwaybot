@@ -34,8 +34,6 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   onClose,
   onDeleteRequest,
 }) => {
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<number | 'all'>('all');
-
   if (!isOpen || !submission) return null;
 
   const handlePrint = () => {
@@ -66,11 +64,6 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
   const rawPhone = (submission.whatsapp || '').replace(/\D/g, '');
   const waUrl = rawPhone ? `https://wa.me/55${rawPhone}` : '#';
-
-  const displayedCategories =
-    activeCategoryFilter === 'all'
-      ? CATEGORIES
-      : CATEGORIES.filter((c) => c.id === activeCategoryFilter);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white animate-fadeIn">
@@ -198,130 +191,79 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Pills (Hidden on print) */}
-        <div className="px-5 sm:px-8 py-3 bg-white border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar no-print">
-          <button
-            onClick={() => setActiveCategoryFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              activeCategoryFilter === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Todas as Categorias (25)
-          </button>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategoryFilter(cat.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer whitespace-nowrap transition-colors ${
-                activeCategoryFilter === cat.id
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Cat. {cat.numberRoman} — {cat.title}
-            </button>
-          ))}
-        </div>
-
         {/* Answers List Body */}
-        <div className="p-5 sm:p-8 space-y-8 max-h-[60vh] overflow-y-auto print:max-h-none print:overflow-visible">
-          {displayedCategories.map((category) => {
-            const catQuestions = QUESTIONS.filter((q) => q.category === category.id);
+        <div className="p-5 sm:p-8 space-y-4 max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible">
+          {QUESTIONS.map((q) => {
+            const ans = submission.answers?.[q.id];
+            const hasValue =
+              ans &&
+              (Array.isArray(ans.value)
+                ? ans.value.length > 0
+                : Boolean(ans.value && ans.value.trim().length > 0));
 
             return (
-              <div key={category.id} className="space-y-4 break-inside-avoid">
-                {/* Category Header */}
-                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-200">
-                  <span className="w-6 h-6 rounded-md bg-indigo-100 text-indigo-800 text-xs font-extrabold flex items-center justify-center">
-                    {category.numberRoman}
+              <div
+                key={q.id}
+                className={`p-4 rounded-xl border text-xs sm:text-sm transition-all break-inside-avoid ${
+                  hasValue
+                    ? 'bg-white border-slate-200/90 shadow-2xs'
+                    : 'bg-amber-50/40 border-amber-200/80'
+                }`}
+              >
+                {/* Question title and answer status badge */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className="font-semibold text-slate-800 leading-snug">
+                    {q.title}
                   </span>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
-                      {category.title}
-                    </h3>
-                    <p className="text-[11px] text-slate-500">{category.subtitle}</p>
-                  </div>
+
+                  {hasValue ? (
+                    <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Respondida
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full">
+                      <AlertCircle className="w-3 h-3 text-amber-600" />
+                      Sem resposta
+                    </span>
+                  )}
                 </div>
 
-                {/* Questions under this category */}
-                <div className="space-y-3">
-                  {catQuestions.map((q) => {
-                    const ans = submission.answers?.[q.id];
-                    const hasValue =
-                      ans &&
-                      (Array.isArray(ans.value)
-                        ? ans.value.length > 0
-                        : Boolean(ans.value && ans.value.trim().length > 0));
-
-                    return (
-                      <div
-                        key={q.id}
-                        className={`p-4 rounded-xl border text-xs sm:text-sm transition-all break-inside-avoid ${
-                          hasValue
-                            ? 'bg-white border-slate-200/90 shadow-2xs'
-                            : 'bg-amber-50/40 border-amber-200/80'
-                        }`}
-                      >
-                        {/* Question title and answer status badge */}
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <span className="font-semibold text-slate-800 leading-snug">
-                            {q.title}
+                {/* Answer rendering */}
+                {hasValue ? (
+                  <div className="mt-2 text-slate-900">
+                    {Array.isArray(ans.value) ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {ans.value.map((item, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold"
+                          >
+                            ✓ {item}
                           </span>
-
-                          {hasValue ? (
-                            <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Respondida
-                            </span>
-                          ) : (
-                            <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full">
-                              <AlertCircle className="w-3 h-3 text-amber-600" />
-                              Sem resposta
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Answer rendering */}
-                        {hasValue ? (
-                          <div className="mt-2 text-slate-900">
-                            {Array.isArray(ans.value) ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {ans.value.map((item, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-semibold"
-                                  >
-                                    ✓ {item}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 font-medium text-slate-800 leading-relaxed whitespace-pre-wrap">
-                                {ans.value}
-                              </div>
-                            )}
-
-                            {/* Additional notes if provided */}
-                            {ans.notes && ans.notes.trim() && (
-                              <div className="mt-2 p-2.5 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-indigo-950">
-                                <span className="font-bold text-indigo-700 block mb-0.5 text-[10px] uppercase">
-                                  Observação adicional da clínica:
-                                </span>
-                                {ans.notes}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mt-1 text-xs text-amber-700 font-medium italic">
-                            Esta pergunta não foi respondida pelo cliente. Pode ser abordada durante a reunião de alinhamento com a clínica.
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
+                    ) : (
+                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 font-medium text-slate-800 leading-relaxed whitespace-pre-wrap">
+                        {ans.value}
+                      </div>
+                    )}
+
+                    {/* Additional notes if provided */}
+                    {ans.notes && ans.notes.trim() && (
+                      <div className="mt-2 p-2.5 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-indigo-950">
+                        <span className="font-bold text-indigo-700 block mb-0.5 text-[10px] uppercase">
+                          Observação adicional da clínica:
+                        </span>
+                        {ans.notes}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-xs text-amber-700 font-medium italic">
+                    Esta pergunta não foi respondida pelo cliente. Pode ser abordada durante a reunião de alinhamento com a clínica.
+                  </div>
+                )}
               </div>
             );
           })}
