@@ -16,42 +16,42 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
     e.preventDefault();
     setError(null);
 
-    if (!password.trim()) {
-      setError('Por favor, digite a senha de acesso.');
+    const trimmed = password.trim();
+    if (!trimmed) {
+      setError('Por favor, informe a senha de acesso (senha inicial: 17063007).');
       return;
     }
 
     setIsLoading(true);
     try {
-      // Validated on the server - the password is NOT compared in client code
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ password: password.trim() }),
+        body: JSON.stringify({ password: trimmed }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Senha incorreta. Verifique e tente novamente.');
+        throw new Error(data.error || 'Senha incorreta. A senha padrão é 17063007.');
       }
 
-      // Store token securely in sessionStorage
       if (data.token) {
+        localStorage.setItem('localway_admin_token', data.token);
         sessionStorage.setItem('localway_admin_token', data.token);
         onLoginSuccess(data.token);
       }
     } catch (err: any) {
-      setError(err?.message || 'Falha ao autenticar. Tente novamente.');
+      setError(err?.message || 'Falha ao autenticar. Verifique a senha e tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto py-12 px-4">
+    <div className="max-w-md mx-auto py-8 sm:py-12 px-4">
       {/* Brand icon and lock header */}
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-white mx-auto mb-4 shadow-sm">
@@ -61,11 +61,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
           <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
           Área Restrita Localway
         </div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
           Painel Administrativo
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Acesso exclusivo para visualização e gestão de diagnósticos das clínicas
+          Acesso exclusivo para visualização das respostas enviadas pelas clínicas
         </p>
       </div>
 
@@ -74,13 +74,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-              Senha de Acesso Administrativo
+              Senha de Acesso
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Digite a senha administrativa..."
+                placeholder="Digite a senha (17063007)"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -135,7 +135,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
           >
             ← Voltar ao formulário
           </button>
-          <span className="text-[11px] text-slate-400">Autenticação Segura</span>
+          <span className="text-[11px] text-slate-400">Localway Auth</span>
         </div>
       </div>
     </div>

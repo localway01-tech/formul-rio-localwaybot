@@ -6,6 +6,10 @@ import {
   FileEdit,
   Loader2,
   Sparkles,
+  Building2,
+  Phone,
+  AlertCircle,
+  Shield,
 } from 'lucide-react';
 import { QUESTIONS } from '../data/questions';
 import { AnswersMap, QuestionAnswer } from '../types';
@@ -15,6 +19,11 @@ interface SinglePageQuestionsFormProps {
   onAnswerChange: (questionId: number, answer: QuestionAnswer) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  submitError?: string | null;
+  clinicName: string;
+  onClinicNameChange: (val: string) => void;
+  whatsapp: string;
+  onWhatsappChange: (val: string) => void;
 }
 
 export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = ({
@@ -22,6 +31,11 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
   onAnswerChange,
   onSubmit,
   isSubmitting,
+  submitError,
+  clinicName,
+  onClinicNameChange,
+  whatsapp,
+  onWhatsappChange,
 }) => {
   // Track open notes fields per question
   const [openNotes, setOpenNotes] = useState<Record<number, boolean>>({});
@@ -86,12 +100,9 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
 
   return (
     <div className="max-w-3xl mx-auto pb-16">
+
       {/* Title & Introduction Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100/80 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-          Levantamento de Requisitos
-        </div>
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-2.5">
           Diagnóstico para Automação de Atendimento
         </h1>
@@ -101,7 +112,7 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
       </div>
 
       {/* Sticky Progress Bar */}
-      <div className="sticky top-16 z-30 bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 mb-8 shadow-xs transition-all">
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 mb-8 shadow-xs transition-all">
         <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
           <span className="font-bold text-slate-800 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-indigo-600" />
@@ -260,7 +271,7 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
                             className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
                               isSelected
                                 ? 'bg-indigo-600 border-indigo-600 text-white'
-                              : 'border-slate-300 group-hover:border-slate-400 bg-white'
+                                : 'border-slate-300 group-hover:border-slate-400 bg-white'
                             }`}
                           >
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
@@ -324,14 +335,54 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
         })}
       </div>
 
-      {/* Submit Action at the Bottom of the Single Page */}
+      {/* Submit Action Card at the Bottom of the Single Page */}
       <div className="mt-10 bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 text-center shadow-xs">
-        <h4 className="text-base font-bold text-slate-900 mb-1">
-          Pronto para enviar seu diagnóstico?
+        <h4 className="text-lg font-bold text-slate-900 mb-1">
+          Finalizar Diagnóstico
         </h4>
         <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-6">
-          Você pode enviar agora mesmo. Perguntas não preenchidas serão consideradas como opcionais pela equipe Localway.
+          Todas as respostas serão salvas com segurança no banco de dados. Perguntas não preenchidas são tratadas como opcionais.
         </p>
+
+        {/* Optional Clinic Identification fields right before submission */}
+        <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/70 text-left mb-6 max-w-lg mx-auto">
+          <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider block mb-2">
+            Identificação da Clínica (Opcional)
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative">
+              <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Nome da Clínica (opcional)"
+                value={clinicName}
+                onChange={(e) => onClinicNameChange(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+            <div className="relative">
+              <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="WhatsApp (opcional)"
+                value={whatsapp}
+                onChange={(e) => onWhatsappChange(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Error message card if submission failed */}
+        {submitError && (
+          <div className="p-4 mb-6 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-start gap-2.5 max-w-lg mx-auto text-left animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Não foi possível enviar agora:</p>
+              <p className="text-xs text-rose-700 mt-0.5">{submitError}</p>
+            </div>
+          </div>
+        )}
 
         <button
           type="button"

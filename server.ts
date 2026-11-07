@@ -43,37 +43,51 @@ app.use(express.urlencoded({ extended: true }));
 
 // Admin Password from environment or default
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '17063007';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'localway-secure-session-key-2026';
 
-// Session registry for authenticated tokens (in-memory with 24-hour expiration)
-interface Session {
-  token: string;
-  createdAt: number;
-  expiresAt: number;
+// Cryptographic stateless token generator - persists across server restarts
+function generateAdminToken(): string {
+  const timestamp = Date.now().toString();
+  const signature = crypto
+    .createHmac('sha256', ADMIN_SECRET)
+    .update(`${timestamp}:${ADMIN_PASSWORD}`)
+    .digest('hex');
+  return `${timestamp}.${signature}`;
 }
-const activeSessions = new Map<string, Session>();
 
-// Helper to clean expired sessions
-function cleanSessions() {
+// Cryptographic stateless token validator (valid for 7 days)
+function verifyAdminToken(token: string): boolean {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  const parts = token.split('.');
+  if (parts.length !== 2) return false;
+  const [timestampStr, signature] = parts;
+  const timestamp = parseInt(timestampStr, 10);
+  if (isNaN(timestamp)) return false;
+
+  const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
   const now = Date.now();
-  for (const [token, session] of activeSessions.entries()) {
-    if (session.expiresAt <= now) {
-      activeSessions.delete(token);
-    }
+  if (now - timestamp > maxAge || timestamp > now + 60000) {
+    return false;
   }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', ADMIN_SECRET)
+    .update(`${timestampStr}:${ADMIN_PASSWORD}`)
+    .digest('hex');
+
+  if (signature.length !== expectedSignature.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
 }
 
 // Authentication middleware
 function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  cleanSessions();
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Acesso não autorizado. Faça login para continuar.' });
   }
 
   const token = authHeader.split(' ')[1];
-  const session = activeSessions.get(token);
-
-  if (!session || session.expiresAt <= Date.now()) {
+  if (!verifyAdminToken(token)) {
     return res.status(401).json({ error: 'Sessão expirada ou inválida. Por favor, faça login novamente.' });
   }
 
@@ -157,16 +171,9 @@ app.post('/api/admin/login', (req, res) => {
       return res.status(401).json({ error: 'Senha incorreta. Verifique e tente novamente.' });
     }
 
-    // Generate token
-    const token = crypto.randomBytes(32).toString('hex');
-    const now = Date.now();
-    const expiresAt = now + 24 * 60 * 60 * 1000; // 24 hours
-
-    activeSessions.set(token, {
-      token,
-      createdAt: now,
-      expiresAt,
-    });
+    // Generate stateless cryptographic HMAC token
+    const token = generateAdminToken();
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
     return res.json({
       success: true,
@@ -186,11 +193,7 @@ app.get('/api/admin/verify', requireAdminAuth, (req, res) => {
 });
 
 // Admin: Logout
-app.post('/api/admin/logout', requireAdminAuth, (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (token) {
-    activeSessions.delete(token);
-  }
+app.post('/api/admin/logout', (req, res) => {
   res.json({ success: true, message: 'Sessão encerrada com sucesso.' });
 });
 

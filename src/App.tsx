@@ -4,7 +4,7 @@ import { SinglePageQuestionsForm } from './components/SinglePageQuestionsForm';
 import { FormConfirmation } from './components/FormConfirmation';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { AnswersMap } from './types';
+import { AnswersMap, ClinicInfo } from './types';
 
 export default function App() {
   // Navigation view: 'form' (public customer questionnaire) or 'admin' (Localway backoffice)
@@ -12,6 +12,10 @@ export default function App() {
 
   // Form submitted state: true when submission has been saved
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+
+  // Optional clinic identification fields
+  const [clinicName, setClinicName] = useState<string>('');
+  const [whatsapp, setWhatsapp] = useState<string>('');
 
   // Answers state stored locally to prevent accidental data loss during filling
   const [answers, setAnswers] = useState<AnswersMap>(() => {
@@ -30,10 +34,11 @@ export default function App() {
   const [submissionId, setSubmissionId] = useState<string>('');
   const [submissionDate, setSubmissionDate] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Admin authentication state
+  // Admin authentication state (persists across reloads)
   const [adminToken, setAdminToken] = useState<string | null>(() => {
-    return sessionStorage.getItem('localway_admin_token');
+    return localStorage.getItem('localway_admin_token') || sessionStorage.getItem('localway_admin_token');
   });
 
   // Save draft locally to prevent accidental loss
@@ -61,10 +66,38 @@ export default function App() {
     }));
   };
 
-  // Submit all 25 questions to persistent Firestore via server endpoint
+  // Submit all 25 questions to persistent Firestore (Dual-layer resilience)
   const handleSubmitForm = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
 
+    const generatedId = 'sub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const resolvedClinicName = clinicName.trim()
+      ? clinicName.trim()
+      : (answers[18]?.value && typeof answers[18].value === 'string' && answers[18].value.trim())
+        ? 'Clínica: ' + answers[18].value.trim().slice(0, 45)
+        : 'Diagnóstico #' + generatedId.slice(-6);
+
+    const resolvedWhatsapp = whatsapp.trim()
+      ? whatsapp.trim()
+      : (answers[21]?.value && typeof answers[21].value === 'string')
+        ? answers[21].value.trim()
+        : '';
+
+    const submissionPayload = {
+      id: generatedId,
+      clinicName: resolvedClinicName,
+      whatsapp: resolvedWhatsapp,
+      answers,
+      createdAt: new Date().toISOString(),
+      status: 'new',
+    };
+
+    let saved = false;
+    let savedId = generatedId;
+    let savedCreatedAt = submissionPayload.createdAt;
+
+    // 1. Try server endpoint first
     try {
       const response = await fetch('/api/submissions', {
         method: 'POST',
@@ -72,34 +105,56 @@ export default function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          clinicName: clinicName.trim(),
+          whatsapp: whatsapp.trim(),
           answers,
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Erro ao enviar respostas.');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          saved = true;
+          savedId = data.id || generatedId;
+          savedCreatedAt = data.createdAt || submissionPayload.createdAt;
+        }
       }
-
-      setSubmissionId(data.id);
-      setSubmissionDate(data.createdAt || new Date().toISOString());
-      setIsSubmitted(true);
-
-      // Clear draft storage
-      localStorage.removeItem('localway_answers_draft');
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message || 'Falha ao salvar respostas no banco de dados. Tente novamente.');
-    } finally {
-      setIsSubmitting(false);
+    } catch (err) {
+      console.warn('Server endpoint submission failed, attempting direct Firestore write:', err);
     }
+
+    // 2. Direct Firestore fallback if server endpoint had an issue
+    if (!saved) {
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const { db } = await import('./lib/firebase');
+        await setDoc(doc(db, 'submissions', generatedId), submissionPayload);
+        saved = true;
+      } catch (fbErr: any) {
+        console.error('Direct Firestore write failed:', fbErr);
+        setSubmitError(
+          fbErr?.message || 'Falha ao salvar as respostas. Por favor, tente novamente.'
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    setSubmissionId(savedId);
+    setSubmissionDate(savedCreatedAt);
+    setIsSubmitted(true);
+    setIsSubmitting(false);
+
+    // Clear draft storage
+    localStorage.removeItem('localway_answers_draft');
   };
 
   // Reset questionnaire
   const handleResetForm = () => {
     setIsSubmitted(false);
     setAnswers({});
+    setClinicName('');
+    setWhatsapp('');
     setSubmissionId('');
     setSubmissionDate('');
     localStorage.removeItem('localway_answers_draft');
@@ -119,8 +174,17 @@ export default function App() {
         // ignore
       }
     }
+    localStorage.removeItem('localway_admin_token');
     sessionStorage.removeItem('localway_admin_token');
     setAdminToken(null);
+  };
+
+  const clinicInfoSummary: ClinicInfo = {
+    clinicName: clinicName.trim() || 'Sua Clínica',
+    contactName: '',
+    whatsapp: whatsapp.trim(),
+    email: '',
+    city: '',
   };
 
   return (
@@ -154,7 +218,10 @@ export default function App() {
             />
           ) : (
             <AdminLogin
-              onLoginSuccess={(token) => setAdminToken(token)}
+              onLoginSuccess={(token) => {
+                setAdminToken(token);
+                localStorage.setItem('localway_admin_token', token);
+              }}
               onBackToForm={() => {
                 setCurrentView('form');
                 window.location.hash = '';
@@ -162,7 +229,7 @@ export default function App() {
             />
           )
         ) : (
-          /* ================= PUBLIC CUSTOMER FORM (SINGLE PAGE, NO CATEGORIES, NO INITIAL INFO) ================= */
+          /* ================= PUBLIC CUSTOMER FORM ================= */
           <div>
             {!isSubmitted ? (
               <SinglePageQuestionsForm
@@ -170,9 +237,15 @@ export default function App() {
                 onAnswerChange={handleAnswerChange}
                 onSubmit={handleSubmitForm}
                 isSubmitting={isSubmitting}
+                submitError={submitError}
+                clinicName={clinicName}
+                onClinicNameChange={setClinicName}
+                whatsapp={whatsapp}
+                onWhatsappChange={setWhatsapp}
               />
             ) : (
               <FormConfirmation
+                clinicInfo={clinicInfoSummary}
                 answers={answers}
                 submissionId={submissionId}
                 createdAt={submissionDate}
@@ -200,9 +273,9 @@ export default function App() {
                 if (currentView !== 'admin') window.location.hash = '#admin';
                 else window.location.hash = '';
               }}
-              className="text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer font-medium"
+              className="text-indigo-600 hover:text-indigo-800 font-bold transition-colors cursor-pointer"
             >
-              {currentView === 'admin' ? 'Ver Formulário' : 'Acesso Equipe'}
+              {currentView === 'admin' ? 'Ver Formulário' : 'Painel ADM (Respostas)'}
             </button>
           </div>
         </div>
