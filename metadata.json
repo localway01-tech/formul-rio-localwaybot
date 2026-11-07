@@ -1,0 +1,6 @@
+{
+  "name": "Localway - Diagnóstico para Automação",
+  "description": "Formulário de levantamento de requisitos para automação de atendimento via WhatsApp de clínicas e painel administrativo da Localway.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
