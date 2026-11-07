@@ -5,11 +5,7 @@ import {
   Plus,
   FileEdit,
   Loader2,
-  Sparkles,
-  Building2,
-  Phone,
   AlertCircle,
-  Shield,
 } from 'lucide-react';
 import { QUESTIONS } from '../data/questions';
 import { AnswersMap, QuestionAnswer } from '../types';
@@ -20,10 +16,6 @@ interface SinglePageQuestionsFormProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   submitError?: string | null;
-  clinicName: string;
-  onClinicNameChange: (val: string) => void;
-  whatsapp: string;
-  onWhatsappChange: (val: string) => void;
 }
 
 export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = ({
@@ -32,10 +24,6 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
   onSubmit,
   isSubmitting,
   submitError,
-  clinicName,
-  onClinicNameChange,
-  whatsapp,
-  onWhatsappChange,
 }) => {
   // Track open notes fields per question
   const [openNotes, setOpenNotes] = useState<Record<number, boolean>>({});
@@ -343,35 +331,6 @@ export const SinglePageQuestionsForm: React.FC<SinglePageQuestionsFormProps> = (
         <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-6">
           Todas as respostas serão salvas com segurança no banco de dados. Perguntas não preenchidas são tratadas como opcionais.
         </p>
-
-        {/* Optional Clinic Identification fields right before submission */}
-        <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/70 text-left mb-6 max-w-lg mx-auto">
-          <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider block mb-2">
-            Identificação da Clínica (Opcional)
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="relative">
-              <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Nome da Clínica (opcional)"
-                value={clinicName}
-                onChange={(e) => onClinicNameChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
-            <div className="relative">
-              <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="WhatsApp (opcional)"
-                value={whatsapp}
-                onChange={(e) => onWhatsappChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Error message card if submission failed */}
         {submitError && (

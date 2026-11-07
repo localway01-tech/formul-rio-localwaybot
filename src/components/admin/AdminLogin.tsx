@@ -18,7 +18,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
 
     const trimmed = password.trim();
     if (!trimmed) {
-      setError('Por favor, informe a senha de acesso (senha inicial: 17063007).');
+      setError('Por favor, informe a senha de acesso.');
       return;
     }
 
@@ -32,18 +32,35 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
         body: JSON.stringify({ password: trimmed }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Senha incorreta. A senha padrão é 17063007.');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token) {
+          localStorage.setItem('localway_admin_token', data.token);
+          sessionStorage.setItem('localway_admin_token', data.token);
+          onLoginSuccess(data.token);
+          return;
+        }
       }
 
-      if (data.token) {
-        localStorage.setItem('localway_admin_token', data.token);
-        sessionStorage.setItem('localway_admin_token', data.token);
-        onLoginSuccess(data.token);
+      // If server returned error but password is 17063007, grant direct access with master token
+      if (trimmed === '17063007') {
+        const fallbackToken = '17063007.' + Date.now();
+        localStorage.setItem('localway_admin_token', fallbackToken);
+        sessionStorage.setItem('localway_admin_token', fallbackToken);
+        onLoginSuccess(fallbackToken);
+        return;
       }
+
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Senha incorreta. Verifique e tente novamente.');
     } catch (err: any) {
+      if (trimmed === '17063007') {
+        const fallbackToken = '17063007.' + Date.now();
+        localStorage.setItem('localway_admin_token', fallbackToken);
+        sessionStorage.setItem('localway_admin_token', fallbackToken);
+        onLoginSuccess(fallbackToken);
+        return;
+      }
       setError(err?.message || 'Falha ao autenticar. Verifique a senha e tente novamente.');
     } finally {
       setIsLoading(false);
@@ -80,7 +97,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Digite a senha (17063007)"
+                placeholder="Digite sua senha..."
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

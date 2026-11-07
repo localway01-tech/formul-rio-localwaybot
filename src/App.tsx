@@ -238,10 +238,6 @@ export default function App() {
                 onSubmit={handleSubmitForm}
                 isSubmitting={isSubmitting}
                 submitError={submitError}
-                clinicName={clinicName}
-                onClinicNameChange={setClinicName}
-                whatsapp={whatsapp}
-                onWhatsappChange={setWhatsapp}
               />
             ) : (
               <FormConfirmation
