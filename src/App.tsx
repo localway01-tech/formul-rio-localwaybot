@@ -84,11 +84,24 @@ export default function App() {
         ? answers[21].value.trim()
         : '';
 
+    // Sanitize answers to guarantee valid Firestore data types
+    const sanitizedAnswers: Record<string, { value: string | string[]; notes?: string }> = {};
+    for (const [key, item] of Object.entries(answers)) {
+      if (item) {
+        sanitizedAnswers[key] = {
+          value: Array.isArray(item.value)
+            ? item.value.map((v) => String(v || '').trim())
+            : String(item.value || '').trim(),
+          notes: item.notes ? String(item.notes).trim() : '',
+        };
+      }
+    }
+
     const submissionPayload = {
       id: generatedId,
       clinicName: resolvedClinicName,
       whatsapp: resolvedWhatsapp,
-      answers,
+      answers: sanitizedAnswers,
       createdAt: new Date().toISOString(),
       status: 'new',
     };
@@ -107,7 +120,7 @@ export default function App() {
         body: JSON.stringify({
           clinicName: clinicName.trim(),
           whatsapp: whatsapp.trim(),
-          answers,
+          answers: sanitizedAnswers,
         }),
       });
 
@@ -118,12 +131,15 @@ export default function App() {
           savedId = data.id || generatedId;
           savedCreatedAt = data.createdAt || submissionPayload.createdAt;
         }
+      } else {
+        const errJson = await response.json().catch(() => null);
+        console.warn('Server endpoint error response:', errJson);
       }
     } catch (err) {
       console.warn('Server endpoint submission failed, attempting direct Firestore write:', err);
     }
 
-    // 2. Direct Firestore fallback if server endpoint had an issue
+    // 2. Direct Firestore write fallback if server endpoint had an issue
     if (!saved) {
       try {
         const { doc, setDoc } = await import('firebase/firestore');
@@ -133,7 +149,7 @@ export default function App() {
       } catch (fbErr: any) {
         console.error('Direct Firestore write failed:', fbErr);
         setSubmitError(
-          fbErr?.message || 'Falha ao salvar as respostas. Por favor, tente novamente.'
+          fbErr?.message || 'Falha ao registrar as respostas. Verifique sua conexão e tente novamente.'
         );
         setIsSubmitting(false);
         return;

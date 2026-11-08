@@ -18,11 +18,13 @@ service cloud.firestore {
     function isValidSubmission(data) {
       return data.keys().hasAll(['createdAt'])
         && data.createdAt is string && data.createdAt.size() <= 100
-        && (!('clinicName' in data) || (data.clinicName is string && data.clinicName.size() <= 200))
-        && (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 50))
-        && (!('contactName' in data) || (data.contactName is string && data.contactName.size() <= 200))
-        && (!('email' in data) || (data.email is string && data.email.size() <= 150))
-        && (!('city' in data) || (data.city is string && data.city.size() <= 100))
+        && (!('clinicName' in data) || (data.clinicName is string && data.clinicName.size() <= 500))
+        && (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 100))
+        && (!('contactName' in data) || (data.contactName is string && data.contactName.size() <= 300))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && (!('city' in data) || (data.city is string && data.city.size() <= 200))
+        && (!('status' in data) || (data.status is string && data.status.size() <= 50))
+        && (!('id' in data) || (data.id is string && data.id.size() <= 128))
         && (!('answers' in data) || data.answers is map);
     }
 
